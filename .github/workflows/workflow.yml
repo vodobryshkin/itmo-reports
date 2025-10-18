@@ -18,13 +18,33 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
-      - name: Copy assets into static
+      - name: Ensure LFS content
+        run: |
+          git lfs install
+          git lfs fetch --all
+          git lfs checkout
+
+      - name: Build Pages artifact
         run: |
           mkdir -p static
+          # копируем нужные каталоги в корень будущего сайта
           cp -r opd bd web zip discrete_math_2sem templates static/ 2>/dev/null || true
+          # если index.html/styles.css лежат не в static — скопируй их
+          [ -f index.html ] && cp index.html static/ || true
+          [ -f styles.css ] && cp styles.css static/ || true
+          # отключить Jekyll, чтобы файлы не фильтровались
+          touch static/.nojekyll
+          # отладка: покажем, что файлы реально есть
+          echo "== artifact listing =="
+          find static -maxdepth 2 -type f -printf "%P\n" | sort
 
       - uses: actions/upload-pages-artifact@v3
         with:
